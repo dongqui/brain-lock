@@ -1,0 +1,7 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(find \"C:\\\\Users\\\\kimwi\\\\OneDrive\\\\Desktop\\\\dev\\\\brain-lock\\\\app\\\\routes\" -type f -name \"*.tsx\" -o -name \"*.ts\" 2>/dev/null | head -20)"
+    ]
+  }
+}

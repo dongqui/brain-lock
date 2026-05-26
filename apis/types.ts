@@ -129,3 +129,35 @@ export interface RealtimeMessage {
   }>;
   [key: string]: unknown;
 }
+
+export type KiwoomMarketType = '000' | '001' | '101';
+// 000: 전체, 001: 코스피, 101: 코스닥
+
+export type KiwoomStockExchangeType = '1' | '2' | '3';
+// 1: KRX, 2: NXT, 3: 통합
+
+export interface GetTopTradingValueParams {
+  marketType?: KiwoomMarketType;
+  includeManagedStocks?: boolean;
+  exchangeType?: KiwoomStockExchangeType;
+}
+
+export interface TopTradingValueItem {
+  stk_cd: string;
+  now_rank: string;
+  pred_rank: string;
+  stk_nm: string;
+  cur_prc: string;
+  pred_pre_sig: string;
+  pred_pre: string;
+  flu_rt: string;
+  sel_bid: string;
+  buy_bid: string;
+  now_trde_qty: string;
+  pred_trde_qty: string;
+  trde_prica: string;
+}
+
+export interface GetTopTradingValueResponse extends KiwoomResponseBase {
+  trde_prica_upper: TopTradingValueItem[];
+}

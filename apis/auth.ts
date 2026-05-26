@@ -1,5 +1,4 @@
 import type {
-  KiwoomCredentials,
   KiwoomEnvironment,
   KiwoomResponseBase,
   KiwoomTokenIssueResponse,
@@ -10,7 +9,12 @@ export const REST_BASE_URL: Record<KiwoomEnvironment, string> = {
   mock: "https://mockapi.kiwoom.com",
 };
 
-const TOKEN_REFRESH_BUFFER_MS = 60_000;
+const TOKEN_REFRESH_BUFFER_MS = 12 * 60 * 60 * 1000;
+
+let _token: string | undefined;
+let _tokenType = "Bearer";
+let _expiresAt: number | undefined;
+let _issuing: Promise<string> | undefined;
 
 function parseKiwoomExpiresAt(expiresDt?: string): number | undefined {
   // 문서 예시: 20241107083713 (YYYYMMDDHHmmss)
@@ -48,88 +52,82 @@ async function readJsonResponse<T extends KiwoomResponseBase>(
   return data as T;
 }
 
-export class KiwoomAuthService {
-  private token?: string;
-  private tokenType = "Bearer";
-  private expiresAt?: number;
-  private issuing?: Promise<string>;
-  private readonly baseUrl: string;
+function isTokenUsable(): boolean {
+  if (!_token) return false;
+  if (!_expiresAt) return true;
+  return Date.now() + TOKEN_REFRESH_BUFFER_MS < _expiresAt;
+}
 
-  constructor(
-    private readonly credentials: KiwoomCredentials,
-    environment: KiwoomEnvironment = "production"
-  ) {
-    this.baseUrl = REST_BASE_URL[environment];
-  }
+async function issueToken(baseUrl: string): Promise<string> {
+  const appKey = import.meta.env.VITE_KIWOOM_APP_KEY ?? "";
+  const secretKey = import.meta.env.VITE_KIWOOM_SECRET_KEY ?? "";
 
-  async getAccessToken(): Promise<string> {
-    if (this.isTokenUsable()) return this.token!;
-    this.issuing ??= this.issueToken().finally(() => {
-      this.issuing = undefined;
-    });
-    return this.issuing;
-  }
+  const response = await fetch(`${baseUrl}/oauth2/token`, {
+    method: "POST",
+    headers: {
+      "Content-Type": "application/json;charset=UTF-8",
+      "api-id": "au10001",
+    },
+    body: JSON.stringify({
+      grant_type: "client_credentials",
+      appkey: appKey,
+      secretkey: secretKey,
+    }),
+  });
 
-  async getAuthorizationHeader(): Promise<string> {
-    const token = await this.getAccessToken();
-    return `${this.tokenType} ${token}`;
-  }
+  const data = await readJsonResponse<KiwoomTokenIssueResponse>(
+    response,
+    "au10001"
+  );
+  _token = data.token;
+  _tokenType =
+    data.token_type?.toLowerCase() === "bearer"
+      ? "Bearer"
+      : data.token_type || "Bearer";
+  _expiresAt = parseKiwoomExpiresAt(data.expires_dt);
+  return _token;
+}
 
-  async issueToken(): Promise<string> {
-    const response = await fetch(`${this.baseUrl}/oauth2/token`, {
-      method: "POST",
-      headers: {
-        "Content-Type": "application/json;charset=UTF-8",
-        "api-id": "au10001",
-      },
-      body: JSON.stringify({
-        grant_type: "client_credentials",
-        appkey: this.credentials.appkey,
-        secretkey: this.credentials.secretkey,
-      }),
-    });
+export async function getAccessToken(baseUrl: string): Promise<string> {
+  if (isTokenUsable()) return _token!;
+  _issuing ??= issueToken(baseUrl).finally(() => {
+    _issuing = undefined;
+  });
+  return _issuing;
+}
 
-    const data = await readJsonResponse<KiwoomTokenIssueResponse>(
-      response,
-      "au10001"
-    );
-    this.token = data.token;
-    this.tokenType =
-      data.token_type?.toLowerCase() === "bearer"
-        ? "Bearer"
-        : data.token_type || "Bearer";
-    this.expiresAt = parseKiwoomExpiresAt(data.expires_dt);
-    return this.token;
-  }
+export async function getAuthorizationHeader(baseUrl: string): Promise<string> {
+  const token = await getAccessToken(baseUrl);
+  return `${_tokenType} ${token}`;
+}
 
-  async revokeToken(token = this.token): Promise<void> {
-    if (!token) return;
+export async function revokeToken(
+  baseUrl: string,
+  tokenToRevoke = _token
+): Promise<void> {
+  if (!tokenToRevoke) return;
 
-    const response = await fetch(`${this.baseUrl}/oauth2/revoke`, {
-      method: "POST",
-      headers: {
-        "Content-Type": "application/json;charset=UTF-8",
-        "api-id": "au10002",
-        authorization: `${this.tokenType} ${token}`,
-      },
-      body: JSON.stringify({
-        appkey: this.credentials.appkey,
-        secretkey: this.credentials.secretkey,
-        token,
-      }),
-    });
+  const appKey = import.meta.env.VITE_KIWOOM_APP_KEY ?? "";
+  const secretKey = import.meta.env.VITE_KIWOOM_SECRET_KEY ?? "";
 
-    await readJsonResponse<KiwoomResponseBase>(response, "au10002");
+  const response = await fetch(`${baseUrl}/oauth2/revoke`, {
+    method: "POST",
+    headers: {
+      "Content-Type": "application/json;charset=UTF-8",
+      "api-id": "au10002",
+      authorization: `${_tokenType} ${tokenToRevoke}`,
+    },
+    body: JSON.stringify({
+      appkey: appKey,
+      secretkey: secretKey,
+      token: tokenToRevoke,
+    }),
+  });
 
-    if (token === this.token) {
-      this.token = undefined;
-      this.expiresAt = undefined;
-    }
-  }
+  await readJsonResponse<KiwoomResponseBase>(response, "au10002");
 
-  private isTokenUsable(): boolean {
-    if (!this.token) return false;
-    if (!this.expiresAt) return true;
-    return Date.now() + TOKEN_REFRESH_BUFFER_MS < this.expiresAt;
+  if (tokenToRevoke === _token) {
+    _token = undefined;
+    _expiresAt = undefined;
   }
 }

@@ -1,102 +1,87 @@
-import WebSocket from 'ws';
-import { KiwoomAuthService } from './auth.js';
-import type { KiwoomConfig, KiwoomEnvironment, RealtimeMessage, RealtimeRegisterRequest, RealtimeType } from './types.js';
+import WebSocket from "ws";
+import { REST_BASE_URL, getAuthorizationHeader } from "./auth.js";
+import type {
+  KiwoomEnvironment,
+  RealtimeMessage,
+  RealtimeRegisterRequest,
+  RealtimeType,
+} from "./types.js";
 
 const SOCKET_BASE_URL: Record<KiwoomEnvironment, string> = {
-  production: 'wss://api.kiwoom.com:10000/api/dostk/websocket',
-  mock: 'wss://mockapi.kiwoom.com:10000/api/dostk/websocket',
+  production: "wss://api.kiwoom.com:10000/api/dostk/websocket",
+  mock: "wss://mockapi.kiwoom.com:10000/api/dostk/websocket",
 };
 
-export class KiwoomSocketClient {
-  private socket: WebSocket | null = null;
-  private readonly staticAccessToken?: string;
-  private readonly auth?: KiwoomAuthService;
-  private readonly url: string;
+export function createKiwoomSocket(environment: KiwoomEnvironment = "mock") {
+  const url = SOCKET_BASE_URL[environment];
+  const restBaseUrl = REST_BASE_URL[environment];
+  let socket: WebSocket | null = null;
 
-  constructor(config: KiwoomConfig) {
-    const environment: KiwoomEnvironment = config.environment ?? 'production';
-    this.staticAccessToken = config.accessToken;
-    this.auth = config.credentials ? new KiwoomAuthService(config.credentials, environment) : undefined;
-    this.url = SOCKET_BASE_URL[environment];
-
-    if (!this.staticAccessToken && !this.auth) {
-      throw new Error('KiwoomSocketClient requires either accessToken or credentials.');
+  function send(payload: RealtimeRegisterRequest): void {
+    if (!socket || socket.readyState !== WebSocket.OPEN) {
+      throw new Error("Kiwoom socket is not connected. Call connect() first.");
     }
+    socket.send(JSON.stringify(payload));
   }
 
-  async connect(apiId: RealtimeType = '0B'): Promise<void> {
-    if (this.socket?.readyState === WebSocket.OPEN) return;
+  async function connect(apiId: RealtimeType = "0B"): Promise<void> {
+    if (socket?.readyState === WebSocket.OPEN) return;
 
-    const authorization = await this.getAuthorizationHeader();
-    this.socket = new WebSocket(this.url, {
+    const authorization = await getAuthorizationHeader(restBaseUrl);
+    socket = new WebSocket(url, {
       headers: {
-        'Content-Type': 'application/json;charset=UTF-8',
-        'api-id': apiId,
+        "Content-Type": "application/json;charset=UTF-8",
+        "api-id": apiId,
         authorization,
       },
     });
 
     return new Promise((resolve, reject) => {
-      this.socket?.once('open', () => resolve());
-      this.socket?.once('error', reject);
+      socket?.once("open", () => resolve());
+      socket?.once("error", reject);
     });
   }
 
-  onMessage(handler: (message: RealtimeMessage) => void): void {
-    this.socket?.on('message', (raw) => {
-      const text = raw.toString();
-      handler(JSON.parse(text) as RealtimeMessage);
+  function onMessage(handler: (message: RealtimeMessage) => void): void {
+    socket?.on("message", (raw) => {
+      handler(JSON.parse(raw.toString()) as RealtimeMessage);
     });
   }
 
-  onClose(handler: (code: number, reason: Buffer) => void): void {
-    this.socket?.on('close', handler);
+  function onClose(handler: (code: number, reason: Buffer) => void): void {
+    socket?.on("close", handler);
   }
 
-  register(type: RealtimeType, items: string[], groupNo = '1', refresh: '0' | '1' = '1'): void {
-    this.send({
-      trnm: 'REG',
-      grp_no: groupNo,
-      refresh,
-      data: [{ item: items, type: [type] }],
-    });
+  function register(
+    type: RealtimeType,
+    items: string[],
+    groupNo = "1",
+    refresh: "0" | "1" = "1"
+  ): void {
+    send({ trnm: "REG", grp_no: groupNo, refresh, data: [{ item: items, type: [type] }] });
   }
 
-  remove(type: RealtimeType, items: string[], groupNo = '1'): void {
-    this.send({
-      trnm: 'REMOVE',
-      grp_no: groupNo,
-      data: [{ item: items, type: [type] }],
-    });
+  function remove(type: RealtimeType, items: string[], groupNo = "1"): void {
+    send({ trnm: "REMOVE", grp_no: groupNo, data: [{ item: items, type: [type] }] });
   }
 
   /** 주문체결(00), 잔고(04)는 종목코드와 상관없이 계좌 이벤트가 내려오므로 item은 빈 문자열로 등록 */
-  registerAccountEvents(groupNo = '1'): void {
-    this.send({
-      trnm: 'REG',
+  function registerAccountEvents(groupNo = "1"): void {
+    send({
+      trnm: "REG",
       grp_no: groupNo,
-      refresh: '1',
+      refresh: "1",
       data: [
-        { item: [''], type: ['00'] },
-        { item: [''], type: ['04'] },
+        { item: [""], type: ["00"] },
+        { item: [""], type: ["04"] },
       ],
     });
   }
 
-  close(): void {
-    this.socket?.close();
-    this.socket = null;
+  function close(): void {
+    socket?.close();
+    socket = null;
   }
 
-  private async getAuthorizationHeader(): Promise<string> {
-    if (this.staticAccessToken) return `Bearer ${this.staticAccessToken}`;
-    return this.auth!.getAuthorizationHeader();
-  }
-
-  private send(payload: RealtimeRegisterRequest): void {
-    if (!this.socket || this.socket.readyState !== WebSocket.OPEN) {
-      throw new Error('Kiwoom socket is not connected. Call connect() first.');
-    }
-    this.socket.send(JSON.stringify(payload));
-  }
+  return { connect, onMessage, onClose, register, remove, registerAccountEvents, close };
 }

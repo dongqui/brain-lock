@@ -1,8 +1,16 @@
-import { useState } from "react";
+import { useEffect, useState } from "react";
+import { useFetcher } from "react-router";
 import type { Route } from "./+types/home";
 
 export function meta({}: Route.MetaArgs) {
   return [{ title: "BrainLock" }];
+}
+
+export async function action({}: Route.ActionArgs) {
+  const { getTopTradingValue } = await import("../../apis/ranking.js");
+  const result = await getTopTradingValue();
+  console.log("[ranking]", JSON.stringify(result, null, 2));
+  return null;
 }
 
 // 임시 데이터 — 추후 종목 검색 연동
@@ -11,6 +19,7 @@ const STOCK = { name: "삼성전자", code: "005930", currentPrice: 73400 };
 type OrderType = "limit" | "market";
 
 export default function Home() {
+  const fetcher = useFetcher();
   const [orderType, setOrderType] = useState<OrderType>("limit");
   const [price, setPrice] = useState(String(STOCK.currentPrice));
   const [qty, setQty] = useState("");
@@ -31,8 +40,11 @@ export default function Home() {
 
   function handleSubmit(e: React.SyntheticEvent<HTMLFormElement>) {
     e.preventDefault();
+    fetcher.submit({}, { method: "post" });
     // TODO: Rule Engine 검증 후 주문 실행
-    alert(`주문 요청\n종목: ${STOCK.name}\n유형: ${orderType === "limit" ? "지정가" : "시장가"}\n가격: ${parsedPrice.toLocaleString()}원\n수량: ${parsedQty}주`);
+    alert(
+      `주문 요청\n종목: ${STOCK.name}\n유형: ${orderType === "limit" ? "지정가" : "시장가"}\n가격: ${parsedPrice.toLocaleString()}원\n수량: ${parsedQty}주`
+    );
   }
 
   return (
@@ -57,7 +69,10 @@ export default function Home() {
           <p className="text-xs text-gray-400">주문 유형</p>
           <div className="flex gap-4">
             {(["limit", "market"] as const).map((type) => (
-              <label key={type} className="flex items-center gap-2 cursor-pointer">
+              <label
+                key={type}
+                className="flex items-center gap-2 cursor-pointer"
+              >
                 <input
                   type="radio"
                   name="orderType"
@@ -86,7 +101,9 @@ export default function Home() {
               disabled={orderType === "market"}
               className="w-full bg-gray-800 border border-gray-600 rounded-lg px-3 py-2.5 text-right text-white text-sm pr-8 disabled:opacity-40 disabled:cursor-not-allowed focus:outline-none focus:border-blue-500"
             />
-            <span className="absolute right-3 top-1/2 -translate-y-1/2 text-xs text-gray-400">원</span>
+            <span className="absolute right-3 top-1/2 -translate-y-1/2 text-xs text-gray-400">
+              원
+            </span>
           </div>
         </div>
 
@@ -102,7 +119,9 @@ export default function Home() {
               placeholder="0"
               className="w-full bg-gray-800 border border-gray-600 rounded-lg px-3 py-2.5 text-right text-white text-sm pr-8 focus:outline-none focus:border-blue-500"
             />
-            <span className="absolute right-3 top-1/2 -translate-y-1/2 text-xs text-gray-400">주</span>
+            <span className="absolute right-3 top-1/2 -translate-y-1/2 text-xs text-gray-400">
+              주
+            </span>
           </div>
         </div>
 

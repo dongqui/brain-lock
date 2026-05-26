@@ -1,4 +1,4 @@
-import { KiwoomRestClient } from './client.js';
+import { kiwoomClient } from "./client.js";
 import type {
   StockCancelOrderRequest,
   StockCancelOrderResponse,
@@ -6,32 +6,55 @@ import type {
   StockModifyOrderResponse,
   StockOrderRequest,
   StockOrderResponse,
-} from './types.js';
+} from "./types.js";
 
-const ORDER_PATH = '/api/dostk/ordr';
+const ORDER_PATH = "/api/dostk/ordr";
 
 function normalizeOrderBody(body: object): Record<string, string> {
   return Object.fromEntries(
-    Object.entries({ dmst_stex_tp: 'SOR', ...body }).map(([key, value]) => [key, value == null ? '' : String(value)]),
+    Object.entries({ dmst_stex_tp: "SOR", ...body }).map(([key, value]) => [
+      key,
+      value == null ? "" : String(value),
+    ])
   );
 }
 
-export class KiwoomOrderService {
-  constructor(private readonly client: KiwoomRestClient) {}
+export function buyStock(
+  request: StockOrderRequest
+): Promise<StockOrderResponse> {
+  return kiwoomClient
+    .post<StockOrderResponse>(ORDER_PATH, normalizeOrderBody(request), {
+      headers: { "api-id": "kt10000" },
+    })
+    .then((r) => r.data);
+}
 
-  buyStock(request: StockOrderRequest): Promise<StockOrderResponse> {
-    return this.client.post<StockOrderResponse>('kt10000', ORDER_PATH, normalizeOrderBody(request));
-  }
+export function sellStock(
+  request: StockOrderRequest
+): Promise<StockOrderResponse> {
+  return kiwoomClient
+    .post<StockOrderResponse>(ORDER_PATH, normalizeOrderBody(request), {
+      headers: { "api-id": "kt10001" },
+    })
+    .then((r) => r.data);
+}
 
-  sellStock(request: StockOrderRequest): Promise<StockOrderResponse> {
-    return this.client.post<StockOrderResponse>('kt10001', ORDER_PATH, normalizeOrderBody(request));
-  }
+export function modifyStockOrder(
+  request: StockModifyOrderRequest
+): Promise<StockModifyOrderResponse> {
+  return kiwoomClient
+    .post<StockModifyOrderResponse>(ORDER_PATH, normalizeOrderBody(request), {
+      headers: { "api-id": "kt10002" },
+    })
+    .then((r) => r.data);
+}
 
-  modifyStockOrder(request: StockModifyOrderRequest): Promise<StockModifyOrderResponse> {
-    return this.client.post<StockModifyOrderResponse>('kt10002', ORDER_PATH, normalizeOrderBody(request));
-  }
-
-  cancelStockOrder(request: StockCancelOrderRequest): Promise<StockCancelOrderResponse> {
-    return this.client.post<StockCancelOrderResponse>('kt10003', ORDER_PATH, normalizeOrderBody(request));
-  }
+export function cancelStockOrder(
+  request: StockCancelOrderRequest
+): Promise<StockCancelOrderResponse> {
+  return kiwoomClient
+    .post<StockCancelOrderResponse>(ORDER_PATH, normalizeOrderBody(request), {
+      headers: { "api-id": "kt10003" },
+    })
+    .then((r) => r.data);
 }
