@@ -2,8 +2,10 @@ import { useState } from "react";
 import { useFetcher } from "react-router";
 import type { Route } from "./+types/trade";
 import { TradeConfirmModal } from "./trade/components/TradeConfirmModal";
-import { useStockSearch } from "./trade/queries/useStockSearch";
+import { useStockSearch } from "./trade/hooks/queries/useStockSearch";
+import { useRecentStocks } from "./trade/hooks/useRecentStocks";
 import type { KiwoomStockMasterItem } from "../../apis/stocks";
+import { parsePrice } from "../shared/utils";
 
 export function meta({}: Route.MetaArgs) {
   return [{ title: "BrainLock" }];
@@ -14,19 +16,16 @@ export async function action({ request }: Route.ActionArgs) {
   const stk_cd = String(formData.get("stk_cd") ?? "");
   const ord_qty = String(formData.get("ord_qty") ?? "");
   const ord_uv = String(formData.get("ord_uv") ?? "");
-  const trde_tp = String(formData.get("trde_tp") ?? "0") as import("../../apis/types.js").KiwoomOrderType;
+  const trde_tp = String(
+    formData.get("trde_tp") ?? "0"
+  ) as import("../../apis/types.js").KiwoomOrderType;
 
   const { buyStock } = await import("../../apis/orders.js");
   const result = await buyStock({ stk_cd, ord_qty, ord_uv, trde_tp });
-  console.log("[buyStock]", JSON.stringify(result, null, 2));
   return { result };
 }
 
 type OrderType = "limit" | "market";
-
-function parsePrice(value?: string) {
-  return Number(String(value ?? "").replace(/[^0-9]/g, "")) || 0;
-}
 
 export default function Trade() {
   const fetcher = useFetcher();
@@ -36,8 +35,10 @@ export default function Trade() {
   const [modalOpen, setModalOpen] = useState(false);
 
   const [keyword, setKeyword] = useState("");
+  const [focused, setFocused] = useState(false);
   const [selected, setSelected] = useState<KiwoomStockMasterItem | null>(null);
   const { results, isLoading, isError } = useStockSearch(keyword);
+  const { recent, addRecent, removeRecent } = useRecentStocks();
 
   const currentPrice = parsePrice(selected?.lastPrice);
   const parsedPrice = Number(price.replace(/,/g, "")) || 0;
@@ -47,7 +48,9 @@ export default function Trade() {
   function handleSelectStock(stock: KiwoomStockMasterItem) {
     setSelected(stock);
     setKeyword("");
+    setFocused(false);
     setPrice(String(parsePrice(stock.lastPrice)));
+    addRecent(stock);
   }
 
   function handleOrderTypeChange(type: OrderType) {
@@ -94,10 +97,12 @@ export default function Trade() {
               type="text"
               value={keyword}
               onChange={(e) => setKeyword(e.target.value)}
+              onFocus={() => setFocused(true)}
+              onBlur={() => setTimeout(() => setFocused(false), 150)}
               placeholder="종목명 또는 종목코드"
               className="w-full bg-gray-800 border border-gray-600 rounded-lg px-3 py-2.5 text-white text-sm focus:outline-none focus:border-blue-500"
             />
-            {keyword && (
+            {keyword ? (
               <ul className="absolute z-10 left-0 right-0 mt-1 max-h-60 overflow-y-auto bg-gray-800 border border-gray-600 rounded-lg shadow-lg">
                 {isLoading && (
                   <li className="px-3 py-2 text-xs text-gray-400">
@@ -129,6 +134,40 @@ export default function Trade() {
                   </li>
                 ))}
               </ul>
+            ) : (
+              focused &&
+              recent.length > 0 && (
+                <ul className="absolute z-10 left-0 right-0 mt-1 max-h-60 overflow-y-auto bg-gray-800 border border-gray-600 rounded-lg shadow-lg">
+                  <li className="px-3 py-1.5 text-[11px] text-gray-500">
+                    최근 검색
+                  </li>
+                  {recent.map((stock) => (
+                    <li
+                      key={stock.code}
+                      className="flex items-center hover:bg-gray-700"
+                    >
+                      <button
+                        type="button"
+                        onClick={() => handleSelectStock(stock)}
+                        className="flex-1 text-left px-3 py-2 flex justify-between items-center"
+                      >
+                        <span className="text-sm text-white">{stock.name}</span>
+                        <span className="text-xs text-gray-400 font-mono">
+                          {stock.code}
+                        </span>
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => removeRecent(stock.code)}
+                        aria-label="최근 검색 삭제"
+                        className="px-3 py-2 text-gray-500 hover:text-white"
+                      >
+                        ✕
+                      </button>
+                    </li>
+                  ))}
+                </ul>
+              )
             )}
           </div>
         </div>
@@ -222,7 +261,9 @@ export default function Trade() {
         {/* fetcher 결과 */}
         {fetcher.data && (
           <p className="text-xs text-green-400 text-center">
-            주문 접수: {(fetcher.data as { result: { ord_no?: string } }).result?.ord_no ?? "완료"}
+            주문 접수:{" "}
+            {(fetcher.data as { result: { ord_no?: string } }).result?.ord_no ??
+              "완료"}
           </p>
         )}
 

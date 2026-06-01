@@ -1,6 +1,6 @@
 import { useMemo } from "react";
 import { useQuery } from "@tanstack/react-query";
-import type { KiwoomStockMasterItem } from "../../../../apis/stocks";
+import type { KiwoomStockMasterItem } from "../../../../../apis/stocks";
 
 function normalizeKeyword(value: string) {
   return value.trim().toLowerCase().replace(/\s+/g, "");
