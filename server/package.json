@@ -1,0 +1,22 @@
+{
+  "name": "@brain-lock/server",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "dev": "cross-env NODE_ENV=development tsx watch src/index.ts",
+    "start": "cross-env NODE_ENV=production tsx src/index.ts",
+    "typecheck": "tsc"
+  },
+  "dependencies": {
+    "@brain-lock/kiwoom": "*",
+    "dotenv": "^16.4.7",
+    "ws": "^8.20.1"
+  },
+  "devDependencies": {
+    "@types/node": "^22",
+    "@types/ws": "^8.18.1",
+    "cross-env": "^7.0.3",
+    "tsx": "^4.19.2",
+    "typescript": "^5.9.3"
+  }
+}

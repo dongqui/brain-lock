@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useState } from "react";
-import type { KiwoomStockMasterItem } from "../../../../apis/stocks";
+import type { KiwoomStockMasterItem } from "@brain-lock/kiwoom";
 
 const STORAGE_KEY = "brainlock:recent-stocks";
 const MAX_ITEMS = 8;

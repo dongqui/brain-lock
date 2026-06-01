@@ -1,4 +1,4 @@
-import { fetchKoreanStockMaster } from "../../../apis/stocks.js";
+import { fetchKoreanStockMaster } from "@brain-lock/kiwoom";
 
 export async function loader() {
   const stocks = await fetchKoreanStockMaster();

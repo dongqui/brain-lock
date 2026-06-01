@@ -1,0 +1,16 @@
+{
+  "name": "@brain-lock/kiwoom",
+  "version": "0.0.0",
+  "private": true,
+  "type": "module",
+  "exports": {
+    ".": "./index.ts"
+  },
+  "dependencies": {
+    "axios": "^1.16.1",
+    "ws": "^8.20.1"
+  },
+  "devDependencies": {
+    "@types/ws": "^8.18.1"
+  }
+}

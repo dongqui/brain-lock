@@ -4,7 +4,8 @@ import type { Route } from "./+types/trade";
 import { TradeConfirmModal } from "./trade/components/TradeConfirmModal";
 import { useStockSearch } from "./trade/hooks/queries/useStockSearch";
 import { useRecentStocks } from "./trade/hooks/useRecentStocks";
-import type { KiwoomStockMasterItem } from "../../apis/stocks";
+import { useRealtimePrice } from "./trade/hooks/useRealtimePrice";
+import type { KiwoomStockMasterItem, KiwoomOrderType } from "@brain-lock/kiwoom";
 import { parsePrice } from "../shared/utils";
 
 export function meta({}: Route.MetaArgs) {
@@ -16,11 +17,9 @@ export async function action({ request }: Route.ActionArgs) {
   const stk_cd = String(formData.get("stk_cd") ?? "");
   const ord_qty = String(formData.get("ord_qty") ?? "");
   const ord_uv = String(formData.get("ord_uv") ?? "");
-  const trde_tp = String(
-    formData.get("trde_tp") ?? "0"
-  ) as import("../../apis/types.js").KiwoomOrderType;
+  const trde_tp = String(formData.get("trde_tp") ?? "0") as KiwoomOrderType;
 
-  const { buyStock } = await import("../../apis/orders.js");
+  const { buyStock } = await import("@brain-lock/kiwoom");
   const result = await buyStock({ stk_cd, ord_qty, ord_uv, trde_tp });
   return { result };
 }
@@ -40,7 +39,8 @@ export default function Trade() {
   const { results, isLoading, isError } = useStockSearch(keyword);
   const { recent, addRecent, removeRecent } = useRecentStocks();
 
-  const currentPrice = parsePrice(selected?.lastPrice);
+  const realtimePrice = useRealtimePrice(selected?.code);
+  const currentPrice = realtimePrice ?? parsePrice(selected?.lastPrice);
   const parsedPrice = Number(price.replace(/,/g, "")) || 0;
   const parsedQty = Number(qty) || 0;
   const totalAmount = parsedPrice * parsedQty;
@@ -178,8 +178,11 @@ export default function Trade() {
             <p className="text-xs text-gray-500 mb-0.5">{selected.code}</p>
             <p className="text-lg font-semibold text-white">{selected.name}</p>
             {currentPrice > 0 && (
-              <p className="text-sm text-blue-400 font-mono mt-0.5">
+              <p className="text-sm text-blue-400 font-mono mt-0.5 flex items-center gap-1.5">
                 {currentPrice.toLocaleString()}원
+                {realtimePrice != null && (
+                  <span className="inline-block w-1.5 h-1.5 rounded-full bg-green-400 animate-pulse" />
+                )}
               </p>
             )}
           </div>

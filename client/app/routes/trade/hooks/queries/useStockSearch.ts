@@ -1,6 +1,6 @@
 import { useMemo } from "react";
 import { useQuery } from "@tanstack/react-query";
-import type { KiwoomStockMasterItem } from "../../../../../apis/stocks";
+import type { KiwoomStockMasterItem } from "@brain-lock/kiwoom";
 
 function normalizeKeyword(value: string) {
   return value.trim().toLowerCase().replace(/\s+/g, "");
@@ -28,7 +28,6 @@ export function useStockMaster() {
 
 export function useStockSearch(keyword: string, limit = 30) {
   const { data, isLoading, isError } = useStockMaster();
-
   const normalizedStocks = useMemo<NormalizedStock[]>(() => {
     if (!data) return [];
     return data.map((stock) => ({

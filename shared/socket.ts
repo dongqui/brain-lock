@@ -1,5 +1,6 @@
 import WebSocket from "ws";
-import { REST_BASE_URL, getAuthorizationHeader } from "./auth.js";
+import { REST_BASE_URL, getAccessToken } from "./auth.js";
+import { getKiwoomEnvironment } from "./env.js";
 import type {
   KiwoomEnvironment,
   RealtimeMessage,
@@ -12,7 +13,9 @@ const SOCKET_BASE_URL: Record<KiwoomEnvironment, string> = {
   mock: "wss://mockapi.kiwoom.com:10000/api/dostk/websocket",
 };
 
-export function createKiwoomSocket(environment: KiwoomEnvironment = "mock") {
+export function createKiwoomSocket(
+  environment: KiwoomEnvironment = getKiwoomEnvironment()
+) {
   const url = SOCKET_BASE_URL[environment];
   const restBaseUrl = REST_BASE_URL[environment];
   let socket: WebSocket | null = null;
@@ -27,18 +30,33 @@ export function createKiwoomSocket(environment: KiwoomEnvironment = "mock") {
   async function connect(apiId: RealtimeType = "0B"): Promise<void> {
     if (socket?.readyState === WebSocket.OPEN) return;
 
-    const authorization = await getAuthorizationHeader(restBaseUrl);
+    const token = await getAccessToken(restBaseUrl);
     socket = new WebSocket(url, {
       headers: {
         "Content-Type": "application/json;charset=UTF-8",
         "api-id": apiId,
-        authorization,
+        authorization: `Bearer ${token}`,
       },
     });
 
     return new Promise((resolve, reject) => {
-      socket?.once("open", () => resolve());
-      socket?.once("error", reject);
+      const ws = socket!;
+      ws.once("open", () => {
+        ws.send(JSON.stringify({ trnm: "LOGIN", token }));
+      });
+      // LOGIN 응답으로 connect 완료를 판정하고, PING은 연결 유지를 위해 원문 그대로 echo
+      ws.on("message", (raw) => {
+        const msg = JSON.parse(raw.toString()) as RealtimeMessage;
+        if (msg.trnm === "PING") {
+          ws.send(raw.toString());
+          return;
+        }
+        if (msg.trnm === "LOGIN") {
+          if (Number(msg.return_code) === 0) resolve();
+          else reject(new Error(`Kiwoom LOGIN failed: ${msg.return_msg ?? ""}`));
+        }
+      });
+      ws.once("error", reject);
     });
   }
 
