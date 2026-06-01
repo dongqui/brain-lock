@@ -96,8 +96,8 @@ No test runner is configured yet.
 **`app/`** — React Router application
 
 - `root.tsx` — HTML shell, Google Fonts (Inter), error boundary
-- `routes.ts` — Route config (currently only index → `routes/home.tsx`)
-- `routes/home.tsx` — Stock order form UI (ticker, order type, price, qty, total)
+- `routes.ts` — Route config (currently only index → `routes/trade.tsx`)
+- `routes/trade.tsx` — Stock order form UI (ticker, order type, price, qty, total)
 
 ### Environment Variables
 

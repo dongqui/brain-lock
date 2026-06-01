@@ -58,9 +58,22 @@ function isTokenUsable(): boolean {
   return Date.now() + TOKEN_REFRESH_BUFFER_MS < _expiresAt;
 }
 
+function getCredentials(): { appKey: string; secretKey: string } {
+  // const env = "production";
+  // if (env === "mock") {
+  //   return {
+  //     appKey: import.meta.env.VITE_MOCK_KIWOOM_APP_KEY ?? "",
+  //     secretKey: import.meta.env.VITE_MOCK_KIWOOM_SECRET_KEY ?? "",
+  //   };
+  // }
+  return {
+    appKey: import.meta.env.VITE_KIWOOM_APP_KEY ?? "",
+    secretKey: import.meta.env.VITE_KIWOOM_SECRET_KEY ?? "",
+  };
+}
+
 async function issueToken(baseUrl: string): Promise<string> {
-  const appKey = import.meta.env.VITE_KIWOOM_APP_KEY ?? "";
-  const secretKey = import.meta.env.VITE_KIWOOM_SECRET_KEY ?? "";
+  const { appKey, secretKey } = getCredentials();
 
   const response = await fetch(`${baseUrl}/oauth2/token`, {
     method: "POST",
@@ -107,8 +120,7 @@ export async function revokeToken(
 ): Promise<void> {
   if (!tokenToRevoke) return;
 
-  const appKey = import.meta.env.VITE_KIWOOM_APP_KEY ?? "";
-  const secretKey = import.meta.env.VITE_KIWOOM_SECRET_KEY ?? "";
+  const { appKey, secretKey } = getCredentials();
 
   const response = await fetch(`${baseUrl}/oauth2/revoke`, {
     method: "POST",

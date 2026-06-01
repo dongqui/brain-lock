@@ -2,10 +2,7 @@ import axios from "axios";
 import { REST_BASE_URL, getAuthorizationHeader } from "./auth.js";
 import type { KiwoomEnvironment, KiwoomResponseBase } from "./types.js";
 
-const BASE_URL =
-  REST_BASE_URL[
-    (import.meta.env.VITE_KIWOOM_ENVIRONMENT as KiwoomEnvironment) ?? "mock"
-  ];
+const BASE_URL = REST_BASE_URL["production"];
 
 export const kiwoomClient = axios.create({
   baseURL: BASE_URL,
