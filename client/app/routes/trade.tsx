@@ -5,8 +5,15 @@ import { TradeConfirmModal } from "./trade/components/TradeConfirmModal";
 import { useStockSearch } from "./trade/hooks/queries/useStockSearch";
 import { useRecentStocks } from "./trade/hooks/useRecentStocks";
 import { useRealtimePrice } from "./trade/hooks/useRealtimePrice";
-import type { KiwoomStockMasterItem, KiwoomOrderType } from "@brain-lock/kiwoom";
-import { parsePrice } from "../shared/utils";
+import type {
+  KiwoomStockMasterItem,
+  KiwoomOrderType,
+} from "@brain-lock/kiwoom";
+import { parsePrice, getTickSize } from "../shared/utils";
+
+function formatNumber(value: string) {
+  return value === "" ? "" : Number(value).toLocaleString();
+}
 
 export function meta({}: Route.MetaArgs) {
   return [{ title: "BrainLock" }];
@@ -63,6 +70,13 @@ export default function Trade() {
     setPrice(raw);
   }
 
+  function adjustPrice(direction: 1 | -1) {
+    const current = Number(price) || 0;
+    const tick = getTickSize(current);
+    const next = Math.max(0, current + direction * tick);
+    setPrice(String(next));
+  }
+
   function handleSubmit(e: React.SyntheticEvent<HTMLFormElement>) {
     e.preventDefault();
     if (!selected) return;
@@ -84,15 +98,17 @@ export default function Trade() {
   }
 
   return (
-    <div className="min-h-screen bg-gray-950 flex items-center justify-center p-4">
+    <div className="min-h-screen bg-gray-950 flex items-center justify-center">
       <form
         onSubmit={handleSubmit}
-        className="bg-gray-900 border border-gray-700 rounded-xl w-full max-w-sm p-6 space-y-5"
+        className="bg-gray-900 border border-gray-700 rounded-xl w-full max-w-xs p-4 space-y-3"
       >
         {/* 종목 검색 */}
-        <div className="space-y-1.5">
-          <label className="text-xs text-gray-400">종목 검색</label>
-          <div className="relative">
+        <div className="flex items-center gap-3">
+          <label className="w-14 shrink-0 text-xs text-gray-400">
+            종목 검색
+          </label>
+          <div className="relative flex-1">
             <input
               type="text"
               value={keyword}
@@ -193,9 +209,9 @@ export default function Trade() {
         <div className="border-t border-gray-700" />
 
         {/* 주문 유형 */}
-        <div className="space-y-1.5">
-          <p className="text-xs text-gray-400">주문 유형</p>
-          <div className="flex gap-4">
+        <div className="flex items-center gap-3">
+          <p className="w-14 shrink-0 text-xs text-gray-400">주문 유형</p>
+          <div className="flex flex-1 gap-4">
             {(["limit", "market"] as const).map((type) => (
               <label
                 key={type}
@@ -218,31 +234,51 @@ export default function Trade() {
         </div>
 
         {/* 가격 */}
-        <div className="space-y-1.5">
-          <label className="text-xs text-gray-400">가격</label>
-          <div className="relative">
-            <input
-              type="text"
-              inputMode="numeric"
-              value={orderType === "market" ? "시장가" : price}
-              onChange={handlePriceChange}
+        <div className="flex items-center gap-3">
+          <label className="w-14 shrink-0 text-xs text-gray-400">가격</label>
+          <div className="flex flex-1 items-center gap-1.5">
+            <button
+              type="button"
+              onClick={() => adjustPrice(-1)}
               disabled={orderType === "market"}
-              className="w-full bg-gray-800 border border-gray-600 rounded-lg px-3 py-2.5 text-right text-white text-sm pr-8 disabled:opacity-40 disabled:cursor-not-allowed focus:outline-none focus:border-blue-500"
-            />
-            <span className="absolute right-3 top-1/2 -translate-y-1/2 text-xs text-gray-400">
-              원
-            </span>
+              aria-label="호가 내리기"
+              className="w-8 shrink-0 bg-gray-800 border border-gray-600 rounded-lg py-2.5 text-white text-sm disabled:opacity-40 disabled:cursor-not-allowed hover:bg-gray-700"
+            >
+              −
+            </button>
+            <div className="relative flex-1">
+              <input
+                type="text"
+                inputMode="numeric"
+                value={orderType === "market" ? "시장가" : formatNumber(price)}
+                onChange={handlePriceChange}
+                disabled={orderType === "market"}
+                className="w-full bg-gray-800 border border-gray-600 rounded-lg px-3 py-2.5 text-right text-white text-sm pr-8 disabled:opacity-40 disabled:cursor-not-allowed focus:outline-none focus:border-blue-500"
+              />
+              <span className="absolute right-3 top-1/2 -translate-y-1/2 text-xs text-gray-400">
+                원
+              </span>
+            </div>
+            <button
+              type="button"
+              onClick={() => adjustPrice(1)}
+              disabled={orderType === "market"}
+              aria-label="호가 올리기"
+              className="w-8 shrink-0 bg-gray-800 border border-gray-600 rounded-lg py-2.5 text-white text-sm disabled:opacity-40 disabled:cursor-not-allowed hover:bg-gray-700"
+            >
+              +
+            </button>
           </div>
         </div>
 
         {/* 수량 */}
-        <div className="space-y-1.5">
-          <label className="text-xs text-gray-400">수량</label>
-          <div className="relative">
+        <div className="flex items-center gap-3">
+          <label className="w-14 shrink-0 text-xs text-gray-400">수량</label>
+          <div className="relative flex-1">
             <input
               type="text"
               inputMode="numeric"
-              value={qty}
+              value={formatNumber(qty)}
               onChange={(e) => setQty(e.target.value.replace(/[^0-9]/g, ""))}
               placeholder="0"
               className="w-full bg-gray-800 border border-gray-600 rounded-lg px-3 py-2.5 text-right text-white text-sm pr-8 focus:outline-none focus:border-blue-500"
