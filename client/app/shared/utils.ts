@@ -11,3 +11,11 @@ export function getTickSize(price: number): number {
 export function parsePrice(value?: string) {
   return Number(String(value ?? "").replace(/[^0-9]/g, "")) || 0;
 }
+
+export function isMarketHours(): boolean {
+  const now = new Date()
+  const kstOffset = 9 * 60
+  const utcMinutes = now.getUTCHours() * 60 + now.getUTCMinutes()
+  const kstMinutes = (utcMinutes + kstOffset) % (24 * 60)
+  return kstMinutes >= 9 * 60 && kstMinutes <= 15 * 60 + 30
+}
