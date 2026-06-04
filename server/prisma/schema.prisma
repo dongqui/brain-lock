@@ -1,0 +1,30 @@
+generator client {
+  provider = "prisma-client"
+  output   = "../src/generated/prisma"
+}
+
+datasource db {
+  provider = "sqlite"
+  url      = env("DATABASE_URL")
+}
+
+model Theme {
+  id     Int          @id @default(autoincrement())
+  name   String       @unique
+  stocks ThemeStock[]
+}
+
+model Stock {
+  code   String       @id
+  name   String
+  themes ThemeStock[]
+}
+
+model ThemeStock {
+  themeId   Int
+  stockCode String
+  theme     Theme  @relation(fields: [themeId], references: [id], onDelete: Cascade)
+  stock     Stock  @relation(fields: [stockCode], references: [code], onDelete: Cascade)
+
+  @@id([themeId, stockCode])
+}
