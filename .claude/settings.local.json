@@ -1,7 +1,29 @@
 {
   "permissions": {
     "allow": [
-      "Bash(find \"C:\\\\Users\\\\kimwi\\\\OneDrive\\\\Desktop\\\\dev\\\\brain-lock\\\\app\\\\routes\" -type f -name \"*.tsx\" -o -name \"*.ts\" 2>/dev/null | head -20)"
+      "Bash(find \"C:\\\\Users\\\\kimwi\\\\OneDrive\\\\Desktop\\\\dev\\\\brain-lock\\\\app\\\\routes\" -type f -name \"*.tsx\" -o -name \"*.ts\" 2>/dev/null | head -20)",
+      "Bash(git add *)",
+      "Bash(git commit *)",
+      "Bash(npm install *)",
+      "Bash(npx prisma *)",
+      "Bash(node -e \"import\\('dotenv/config'\\).then\\(\\(\\) => console.log\\(process.env.DATABASE_URL\\)\\)\")",
+      "Bash(npm run *)",
+      "Bash(grep -E \"themes\\\\.\\\\$|\\\\.reorder\")",
+      "Bash(echo \"EXIT: $?\")",
+      "Bash(npx tsc *)",
+      "Bash(git push *)"
+    ]
+  },
+  "hooks": {
+    "Stop": [
+      {
+        "hooks": [
+          {
+            "type": "command",
+            "command": "powershell -c \"[console]::beep(1000,500)\""
+          }
+        ]
+      }
     ]
   }
 }
