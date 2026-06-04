@@ -2,6 +2,7 @@ import { kiwoomClient } from "./client.js";
 import type {
   GetTopTradingValueParams,
   GetTopTradingValueResponse,
+  TopTradingValueItem,
 } from "./types.js";
 
 export async function getTopTradingValue(
@@ -9,7 +10,7 @@ export async function getTopTradingValue(
 ): Promise<GetTopTradingValueResponse> {
   const {
     marketType = "000",
-    includeManagedStocks = false,
+    includeManagedStocks = true,
     exchangeType = "3",
   } = params;
 
@@ -22,6 +23,23 @@ export async function getTopTradingValue(
     },
     { headers: { "api-id": "ka10032" } }
   );
-
+  data.trde_prica_upper = data.trde_prica_upper.filter(
+    (stock) => !isExcludedStock(stock)
+  );
   return data;
+}
+
+function isExcludedStock(stock: TopTradingValueItem) {
+  const name = stock.stk_nm.toUpperCase();
+
+  return (
+    name.includes("ETF") ||
+    name.includes("ETN") ||
+    name.includes("스팩") ||
+    name.includes("SPAC") ||
+    name.includes("KODEX ") ||
+    name.includes("TIGER ") ||
+    name.includes("SOL ") ||
+    name.includes("RISE ")
+  );
 }
