@@ -8,3 +8,14 @@
 # React Router
 **/.react-router/
 /build/
+
+# Prisma generated client
+client/app/generated/
+
+# SQLite dev database
+client/prisma/dev.db
+client/prisma/prisma/
+
+# SQLite
+**/*.db
+**/prisma/migrations/*.db
