@@ -7,3 +7,6 @@ export * from "./ranking.js";
 export * from "./socket.js";
 export { fetchStockMasterByMarket, fetchKoreanStockMaster } from "./stocks.js";
 export type { KiwoomStockMasterItem } from "./stocks.js";
+export { fetchAccountEvaluation } from "./account.js";
+export type { AccountEvaluationResponse, HoldingStock } from "./account.js";
+export type { RankingItem, ThemeStockWithLeader, ThemeWithLeader, ThemesApiResponse } from "./themes.js";
