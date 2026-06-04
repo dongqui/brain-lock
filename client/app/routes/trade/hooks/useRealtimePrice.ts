@@ -7,14 +7,20 @@ type RealtimeTick = {
   error?: string;
 };
 
-// 키움 실시간 주식체결(0B) 현재가 필드
+// 키움 실시간 주식체결(0B) 필드
 const CURRENT_PRICE_FIELD = "10";
+const CHANGE_RATE_FIELD = "12";
 
-export function useRealtimePrice(code: string | undefined): number | null {
+export function useRealtimePrice(code: string | undefined): {
+  price: number | null;
+  changeRate: number | null;
+} {
   const [price, setPrice] = useState<number | null>(null);
+  const [changeRate, setChangeRate] = useState<number | null>(null);
 
   useEffect(() => {
     setPrice(null);
+    setChangeRate(null);
 
     const url = import.meta.env.VITE_REALTIME_WS_URL;
     if (!code || !url) return;
@@ -34,11 +40,19 @@ export function useRealtimePrice(code: string | undefined): number | null {
       }
       if (tick.code !== code || !tick.values) return;
 
-      const raw = tick.values[CURRENT_PRICE_FIELD];
-      if (raw == null) return;
+      const rawPrice = tick.values[CURRENT_PRICE_FIELD];
+      if (rawPrice != null) {
+        const parsed = Math.abs(Number(rawPrice.replace(/[^0-9.-]/g, "")));
+        if (!Number.isNaN(parsed) && parsed > 0) setPrice(parsed);
+      }
 
-      const parsed = Math.abs(Number(raw.replace(/[^0-9.-]/g, "")));
-      if (!Number.isNaN(parsed) && parsed > 0) setPrice(parsed);
+      const rawRate = tick.values[CHANGE_RATE_FIELD];
+      if (rawRate != null) {
+        const cleaned = rawRate.trim();
+        const isNeg = cleaned.startsWith("-");
+        const num = Number(cleaned.replace(/[^0-9.]/g, ""));
+        if (!Number.isNaN(num)) setChangeRate(isNeg ? -num : num);
+      }
     };
 
     ws.addEventListener("open", handleOpen);
@@ -54,5 +68,5 @@ export function useRealtimePrice(code: string | undefined): number | null {
     };
   }, [code]);
 
-  return price;
+  return { price, changeRate };
 }

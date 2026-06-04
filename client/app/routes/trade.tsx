@@ -55,7 +55,7 @@ export default function Trade() {
   const { recent, addRecent, removeRecent } = useRecentStocks();
   const { data: account } = useAccount();
 
-  const realtimePrice = useRealtimePrice(selected?.code);
+  const { price: realtimePrice, changeRate: realtimeChangeRate } = useRealtimePrice(selected?.code);
   const currentPrice = realtimePrice ?? parsePrice(selected?.lastPrice);
 
   useEffect(() => {
@@ -388,6 +388,7 @@ export default function Trade() {
         open={modalOpen}
         side={side}
         stockCode={selected?.code ?? null}
+        changeRate={realtimeChangeRate}
         onCancel={() => setModalOpen(false)}
         onConfirm={handleConfirm}
       />

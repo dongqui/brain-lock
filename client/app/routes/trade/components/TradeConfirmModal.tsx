@@ -2,16 +2,11 @@ import { useState } from "react";
 import { Modal } from "~/shared/components/Modal";
 import { useStockThemeStatus } from "~/routes/themes/hooks/useStockThemeStatus";
 
-const STATIC_CHECKS = [
-  "장 초반 혹은 급등 후 추격 매수는 아닌가?",
-  "상위 차트가 괜찮은가?",
-  "돌파, 상다, 눌림목 - 내가 아는 패턴인가?",
-] as const;
-
 interface TradeConfirmModalProps {
   open: boolean;
   side: "buy" | "sell";
   stockCode: string | null;
+  changeRate: number | null;
   onCancel: () => void;
   onConfirm: () => void;
 }
@@ -20,33 +15,44 @@ export function TradeConfirmModal({
   open,
   side,
   stockCode,
+  changeRate,
   onCancel,
   onConfirm,
 }: TradeConfirmModalProps) {
   const themeStatus = useStockThemeStatus(stockCode);
-  const [checked, setChecked] = useState<boolean[]>(() =>
-    Array(STATIC_CHECKS.length + 1).fill(false)
-  );
+  const [checked, setChecked] = useState<boolean[]>([false, false]);
 
-  const firstCheckLabel = themeStatus.isLeader
-    ? `주도 테마 주도주: ✅ ${themeStatus.themeName} (${themeStatus.rank}위)`
+  const isChase = changeRate != null && changeRate >= 15;
+  const chaseLabel =
+    changeRate == null
+      ? "등락률 확인 중..."
+      : isChase
+      ? `⚠️ 현재 등락률 +${changeRate.toFixed(1)}% — 추격 매수 아닌가?`
+      : `✅ 등락률 ${changeRate >= 0 ? "+" : ""}${changeRate.toFixed(1)}% — 추격 매수 아님`;
+
+  const themeLabel = themeStatus.isLeader
+    ? `✅ ${themeStatus.themeName} (${themeStatus.rank}위) 주도주`
     : themeStatus.isInTop2
-    ? `주도 테마 종목 (주도주 아님): 🟡 ${themeStatus.themeName}`
+    ? `🟡 ${themeStatus.themeName} 소속 (주도주 아님)`
     : `⚠️ 상위 2개 테마 미등록`;
 
-  const allChecks = [firstCheckLabel, ...STATIC_CHECKS];
+  const checks = [chaseLabel, themeLabel];
 
   function toggle(i: number) {
     setChecked((prev) => prev.map((v, idx) => (idx === i ? !v : v)));
   }
 
+  function reset() {
+    setChecked([false, false]);
+  }
+
   function handleConfirm() {
-    setChecked(Array(allChecks.length).fill(false));
+    reset();
     onConfirm();
   }
 
   function handleCancel() {
-    setChecked(Array(allChecks.length).fill(false));
+    reset();
     onCancel();
   }
 
@@ -70,7 +76,7 @@ export function TradeConfirmModal({
             type="button"
             onClick={handleConfirm}
             disabled={!allChecked}
-            className={`flex-1 py-2.5 rounded-lg disabled:bg-gray-700 disabled:text-gray-500 text-white text-sm font-semibold transition-colors ${
+            className={`flex-1 py-2.5 rounded-lg disabled:bg-gray-700 disabled:text-gray-500 disabled:cursor-not-allowed text-white text-sm font-semibold transition-colors ${
               side === "buy"
                 ? "bg-red-600 hover:bg-red-500"
                 : "bg-blue-600 hover:bg-blue-500"
@@ -83,10 +89,10 @@ export function TradeConfirmModal({
     >
       {side === "buy" ? (
         <>
-          <p className="text-sm text-red-700">* 당장 버는 것이 중요하지 않아. </p>
+          <p className="text-sm text-red-700">* 당장 버는 것이 중요하지 않아.</p>
           <p className="text-sm text-red-700">* 원칙을 지켜야해.</p>
           <ul className="space-y-3 mt-4">
-            {allChecks.map((label, i) => (
+            {checks.map((label, i) => (
               <li key={i}>
                 <label className="flex items-start gap-3 cursor-pointer">
                   <input
