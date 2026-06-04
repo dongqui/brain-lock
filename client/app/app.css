@@ -13,3 +13,11 @@ body {
     color-scheme: dark;
   }
 }
+
+::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+* {
+  scrollbar-color: rgba(156, 163, 175, 0.5) transparent;
+}
