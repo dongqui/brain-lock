@@ -94,6 +94,8 @@ export function buildThemesResponse(
   scored.sort((a, b) => b.themeScore - a.themeScore)
   if (scored.length > 0) scored[0].isLeadingTheme = true
 
+  scored.sort((a, b) => a.order - b.order)
+
   const normalizedRanking: RankingItem[] = rankingItems.map((r, i) => ({
     stockCode: r.stk_cd,
     stockName: r.stk_nm,

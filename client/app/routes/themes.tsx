@@ -3,6 +3,7 @@ import {
   DndContext,
   DragOverlay,
   PointerSensor,
+  closestCenter,
   useSensor,
   useSensors,
   useDraggable,
@@ -95,7 +96,7 @@ export default function Themes() {
   const [activeRankingItem, setActiveRankingItem] =
     useState<RankingItem | null>(null);
 
-  const themes = data?.themes ?? [];
+  const themes = [...(data?.themes ?? [])].sort((a, b) => a.order - b.order);
   const rankingItems = data?.rankingItems ?? [];
 
   const sensors = useSensors(
@@ -162,6 +163,7 @@ export default function Themes() {
 
         <DndContext
           sensors={sensors}
+          collisionDetection={closestCenter}
           onDragStart={handleDragStart}
           onDragEnd={handleDragEnd}
         >
@@ -183,7 +185,7 @@ export default function Themes() {
                   {isLoading ? "로딩..." : "새로고침"}
                 </button>
               </div>
-              <div className="overflow-y-auto">
+              <div className="overflow-y-auto h-full">
                 {rankingItems.map((item) => (
                   <DraggableRankingItem key={item.stockCode} item={item} />
                 ))}

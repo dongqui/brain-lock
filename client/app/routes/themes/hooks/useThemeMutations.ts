@@ -1,4 +1,5 @@
 import { useMutation, useQueryClient } from '@tanstack/react-query'
+import type { ThemesApiResponse } from '@brain-lock/kiwoom'
 import { themesQueryKey } from './useThemes'
 
 export function useThemeMutations() {
@@ -48,13 +49,38 @@ export function useThemeMutations() {
   })
 
   const reorderThemes = useMutation({
-    mutationFn: (ids: number[]) =>
-      fetch('/api/themes/reorder', {
+    mutationFn: async (ids: number[]) => {
+      const res = await fetch('/api/themes/reorder', {
         method: 'PATCH',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ ids }),
-      }),
-    onSuccess: invalidate,
+      })
+      if (!res.ok) throw new Error('순서 저장에 실패했습니다.')
+    },
+    onMutate: async (ids: number[]) => {
+      await queryClient.cancelQueries({ queryKey: themesQueryKey })
+      const previous = queryClient.getQueryData<ThemesApiResponse>(themesQueryKey)
+      if (previous) {
+        const byId = new Map(previous.themes.map(t => [t.id, t]))
+        const reordered = ids
+          .map((id, index) => {
+            const theme = byId.get(id)
+            return theme ? { ...theme, order: index } : undefined
+          })
+          .filter((t): t is NonNullable<typeof t> => t != null)
+        queryClient.setQueryData<ThemesApiResponse>(themesQueryKey, {
+          ...previous,
+          themes: reordered,
+        })
+      }
+      return { previous }
+    },
+    onError: (_err, _ids, context) => {
+      if (context?.previous) {
+        queryClient.setQueryData(themesQueryKey, context.previous)
+      }
+      invalidate()
+    },
   })
 
   return { createTheme, deleteTheme, addStock, removeStock, toggleLeader, reorderThemes }
