@@ -7,11 +7,12 @@ import { useStockSearch } from "./trade/hooks/queries/useStockSearch";
 import { useAccount, accountQueryKey } from "./trade/hooks/queries/useAccount";
 import { useRecentStocks } from "./trade/hooks/useRecentStocks";
 import { useRealtimePrice } from "./trade/hooks/useRealtimePrice";
+import { useIndexTrend } from "./trade/hooks/queries/useIndexTrend";
 import type {
   KiwoomStockMasterItem,
   KiwoomOrderType,
 } from "@brain-lock/kiwoom";
-import { parsePrice, getTickSize } from "../shared/utils";
+import { parsePrice, getTickSize, getMarketType } from "../shared/utils";
 
 function formatNumber(value: string) {
   return value === "" ? "" : Number(value).toLocaleString();
@@ -57,6 +58,8 @@ export default function Trade() {
 
   const { price: realtimePrice, changeRate: realtimeChangeRate } = useRealtimePrice(selected?.code);
   const currentPrice = realtimePrice ?? parsePrice(selected?.lastPrice);
+  const market = getMarketType(selected);
+  const { data: indexTrend } = useIndexTrend(market);
 
   useEffect(() => {
     if (priceEdited || orderType === "market" || realtimePrice == null) return;
@@ -389,6 +392,7 @@ export default function Trade() {
         side={side}
         stockCode={selected?.code ?? null}
         changeRate={realtimeChangeRate}
+        indexTrend={indexTrend}
         onCancel={() => setModalOpen(false)}
         onConfirm={handleConfirm}
       />
