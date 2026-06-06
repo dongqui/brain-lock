@@ -1,4 +1,5 @@
 import { kiwoomClient } from "./client.js";
+import type { SectorMarketType } from "./types.js";
 
 export type KiwoomMarketType =
   | "0" // 코스피
@@ -7,6 +8,7 @@ export type KiwoomMarketType =
 export type KiwoomStockMasterItem = {
   code: string;
   name: string;
+  market?: SectorMarketType;
   marketCode?: string;
   marketName?: string;
   lastPrice?: string;
@@ -57,6 +59,7 @@ export async function fetchStockMasterByMarket(
     .map((item: KiwoomStockMasterRawItem) => ({
       code: item.code!,
       name: item.name!,
+      market: (marketType === "0" ? "0" : "1") as SectorMarketType,
       marketCode: item.marketCode,
       marketName: item.marketName,
       lastPrice: item.lastPrice,

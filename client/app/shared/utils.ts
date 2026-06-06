@@ -1,3 +1,5 @@
+import type { KiwoomStockMasterItem } from "@brain-lock/kiwoom";
+
 export function getTickSize(price: number): number {
   if (price < 2_000) return 1;
   if (price < 5_000) return 5;
@@ -18,4 +20,10 @@ export function isMarketHours(): boolean {
   const utcMinutes = now.getUTCHours() * 60 + now.getUTCMinutes()
   const kstMinutes = (utcMinutes + kstOffset) % (24 * 60)
   return kstMinutes >= 9 * 60 && kstMinutes <= 15 * 60 + 30
+}
+
+export function getMarketType(
+  stock: KiwoomStockMasterItem | null | undefined
+): "0" | "1" | null {
+  return stock?.market ?? null;
 }
