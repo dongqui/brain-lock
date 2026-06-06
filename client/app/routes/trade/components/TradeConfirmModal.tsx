@@ -1,12 +1,14 @@
 import { useState } from "react";
 import { Modal } from "~/shared/components/Modal";
 import { useStockThemeStatus } from "~/routes/themes/hooks/useStockThemeStatus";
+import type { IndexTrend } from "~/routes/trade/hooks/queries/useIndexTrend";
 
 interface TradeConfirmModalProps {
   open: boolean;
   side: "buy" | "sell";
   stockCode: string | null;
   changeRate: number | null;
+  indexTrend: IndexTrend | undefined;
   onCancel: () => void;
   onConfirm: () => void;
 }
@@ -16,11 +18,12 @@ export function TradeConfirmModal({
   side,
   stockCode,
   changeRate,
+  indexTrend,
   onCancel,
   onConfirm,
 }: TradeConfirmModalProps) {
   const themeStatus = useStockThemeStatus(stockCode);
-  const [checked, setChecked] = useState<boolean[]>([false, false]);
+  const [checked, setChecked] = useState<boolean[]>([false, false, false]);
 
   const isChase = changeRate != null && changeRate >= 15;
   const chaseLabel =
@@ -36,14 +39,21 @@ export function TradeConfirmModal({
     ? `🟡 ${themeStatus.themeName} 소속 (주도주 아님)`
     : `⚠️ 상위 2개 테마 미등록`;
 
-  const checks = [chaseLabel, themeLabel];
+  const indexLabel =
+    indexTrend == null
+      ? "지수 상태 확인 중..."
+      : indexTrend.isDowntrend
+      ? `⚠️ ${indexTrend.name} ${indexTrend.downStreak}틱 연속 하락 중 — 지금 매수 맞나?`
+      : `✅ ${indexTrend.name} 하락세 아님`;
+
+  const checks = [chaseLabel, themeLabel, indexLabel];
 
   function toggle(i: number) {
     setChecked((prev) => prev.map((v, idx) => (idx === i ? !v : v)));
   }
 
   function reset() {
-    setChecked([false, false]);
+    setChecked([false, false, false]);
   }
 
   function handleConfirm() {
