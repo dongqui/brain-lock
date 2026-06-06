@@ -4,6 +4,7 @@ export default [
   index("routes/trade.tsx"),
   route("themes", "routes/themes.tsx"),
   route("api/stocks", "routes/api/stocks.ts"),
+  route("api/index", "routes/api/index.ts"),
   route("api/account", "routes/api/account.ts"),
   route("api/themes", "routes/api/themes.ts"),
   route("api/themes/reorder", "routes/api/themes.reorder.ts"),
