@@ -10,4 +10,4 @@ export type { KiwoomStockMasterItem } from "./stocks.js";
 export { fetchAccountEvaluation } from "./account.js";
 export type { AccountEvaluationResponse, HoldingStock } from "./account.js";
 export type { RankingItem, ThemeStockWithLeader, ThemeWithLeader, ThemesApiResponse } from "./themes.js";
-export { getIndustryIndices, getCompositeIndex, pickCompositeIndex, toIndustryTheme } from "./sector.js";
+export { getCompositeIndex } from "./sector.js";

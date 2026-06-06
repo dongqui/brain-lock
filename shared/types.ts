@@ -162,8 +162,8 @@ export interface GetTopTradingValueResponse extends KiwoomResponseBase {
   trde_prica_upper: TopTradingValueItem[];
 }
 
-export type SectorMarketType = "0" | "1";
 // 0: 코스피, 1: 코스닥 (ka20003 mrkt_tp)
+export type SectorMarketType = "0" | "1";
 
 export interface IndustryIndexItem {
   upjong_cd: string;
@@ -179,10 +179,8 @@ export interface IndustryIndexItem {
   flat_cnt: string;
 }
 
-export interface IndustryIndexResponse {
+export interface IndustryIndexResponse extends KiwoomResponseBase {
   upjong_index: IndustryIndexItem[];
-  return_code: number;
-  return_msg: string;
 }
 
 export interface IndustryTheme {
