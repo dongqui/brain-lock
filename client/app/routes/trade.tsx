@@ -35,15 +35,18 @@ export async function action({ request }: Route.ActionArgs) {
   const fn = side === "sell" ? sellStock : buyStock;
   const result = await fn({ stk_cd, ord_qty, ord_uv, trde_tp });
 
-  if (Number(result.return_code) === 0) {
-    const { creditLedger, debitLedger } = await import("~/guard/ledger.server");
+  // 주문 시점 추정 적립이 아니라, 주문번호만 기록해 두고 실체결 이벤트(00 피드)가 장부를 갱신한다.
+  if (Number(result.return_code) === 0 && result.ord_no) {
+    const { insertOwnedOrder } = await import("~/guard/ledger.server");
     const qty = Number(ord_qty);
     if (qty > 0) {
-      if (side === "sell") {
-        await debitLedger(stk_cd, qty);
-      } else {
-        await creditLedger(stk_cd, stk_nm || stk_cd, qty);
-      }
+      await insertOwnedOrder({
+        orderNo: result.ord_no,
+        stockCode: stk_cd,
+        stockName: stk_nm || stk_cd,
+        side: side === "sell" ? "SELL" : "BUY",
+        orderQty: qty,
+      });
     }
   }
 
