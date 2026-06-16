@@ -25,6 +25,7 @@ export function meta({}: Route.MetaArgs) {
 export async function action({ request }: Route.ActionArgs) {
   const formData = await request.formData();
   const stk_cd = String(formData.get("stk_cd") ?? "");
+  const stk_nm = String(formData.get("stk_nm") ?? "");
   const ord_qty = String(formData.get("ord_qty") ?? "");
   const ord_uv = String(formData.get("ord_uv") ?? "");
   const trde_tp = String(formData.get("trde_tp") ?? "0") as KiwoomOrderType;
@@ -33,6 +34,19 @@ export async function action({ request }: Route.ActionArgs) {
   const { buyStock, sellStock } = await import("@brain-lock/kiwoom");
   const fn = side === "sell" ? sellStock : buyStock;
   const result = await fn({ stk_cd, ord_qty, ord_uv, trde_tp });
+
+  if (Number(result.return_code) === 0) {
+    const { creditLedger, debitLedger } = await import("~/guard/ledger.server");
+    const qty = Number(ord_qty);
+    if (qty > 0) {
+      if (side === "sell") {
+        await debitLedger(stk_cd, qty);
+      } else {
+        await creditLedger(stk_cd, stk_nm || stk_cd, qty);
+      }
+    }
+  }
+
   return { result };
 }
 
@@ -130,6 +144,7 @@ export default function Trade() {
     fetcher.submit(
       {
         stk_cd: selected.code,
+        stk_nm: selected.name,
         ord_qty: String(parsedQty),
         ord_uv: orderType === "market" ? "" : String(parsedPrice),
         trde_tp: orderType === "market" ? "3" : "0",
