@@ -28,3 +28,25 @@ model ThemeStock {
 
   @@id([themeId, stockCode])
 }
+
+model LedgerPosition {
+  stockCode   String   @id
+  stockName   String
+  approvedQty Int      @default(0)
+  updatedAt   DateTime @updatedAt
+}
+
+model PendingSell {
+  id        Int      @id @default(autoincrement())
+  stockCode String
+  qty       Int
+  orderNo   String?
+  createdAt DateTime @default(now())
+}
+
+model GuardSetting {
+  id        Int      @id @default(1)
+  enabled   Boolean  @default(false)
+  activated Boolean  @default(false)
+  updatedAt DateTime @updatedAt
+}
