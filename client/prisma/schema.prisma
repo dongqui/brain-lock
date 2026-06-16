@@ -12,6 +12,7 @@ model Theme {
   id        Int          @id @default(autoincrement())
   name      String       @unique
   order     Int          @default(0)
+  collapsed Boolean      @default(false)
   createdAt DateTime     @default(now())
   stocks    ThemeStock[]
 }
@@ -21,6 +22,7 @@ model ThemeStock {
   stockCode    String
   stockName    String
   manualLeader Boolean  @default(false)
+  order        Int      @default(0)
   createdAt    DateTime @default(now())
   theme        Theme    @relation(fields: [themeId], references: [id], onDelete: Cascade)
 
