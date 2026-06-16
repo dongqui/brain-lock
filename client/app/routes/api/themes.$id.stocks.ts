@@ -10,9 +10,18 @@ export async function action({ request, params }: ActionFunctionArgs) {
   if (!body.stockCode || !body.stockName) {
     return Response.json({ error: 'stockCode and stockName required' }, { status: 400 })
   }
+  const maxOrder = await prisma.themeStock.aggregate({
+    where: { themeId },
+    _max: { order: true },
+  })
   const stock = await prisma.themeStock.upsert({
     where: { themeId_stockCode: { themeId, stockCode: body.stockCode } },
-    create: { themeId, stockCode: body.stockCode, stockName: body.stockName },
+    create: {
+      themeId,
+      stockCode: body.stockCode,
+      stockName: body.stockName,
+      order: (maxOrder._max.order ?? -1) + 1,
+    },
     update: {},
   })
   return Response.json(stock, { status: 201 })
