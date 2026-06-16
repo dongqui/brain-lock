@@ -50,3 +50,15 @@ model GuardSetting {
   activated Boolean  @default(false)
   updatedAt DateTime @updatedAt
 }
+
+model OwnedOrder {
+  orderNo   String   @id           // 키움 ord_no
+  stockCode String
+  stockName String
+  side      String                 // "BUY" | "SELL"
+  orderQty  Int
+  filledQty Int      @default(0)   // 누적 체결 (델타 · 예약분 계산)
+  closed    Boolean  @default(false) // 완전체결/취소/거부 시 true
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+}

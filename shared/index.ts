@@ -9,5 +9,7 @@ export { fetchStockMasterByMarket, fetchKoreanStockMaster } from "./stocks.js";
 export type { KiwoomStockMasterItem } from "./stocks.js";
 export { fetchAccountEvaluation } from "./account.js";
 export type { AccountEvaluationResponse, HoldingStock } from "./account.js";
+export { parseOrderExecution } from "./orderExecution.js";
+export type { OrderExecution, OrderExecutionSide } from "./orderExecution.js";
 export type { RankingItem, ThemeStockWithLeader, ThemeWithLeader, ThemesApiResponse } from "./themes.js";
 export { getCompositeIndex } from "./sector.js";

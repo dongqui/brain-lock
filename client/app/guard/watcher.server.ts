@@ -4,26 +4,31 @@ import {
   getGuardSetting,
   getApprovedMap,
   getPendingMap,
+  getOutstandingBuyMap,
   clearExpiredPendingSells,
+  closeStaleOwnedOrders,
   insertPendingSell,
 } from "./ledger.server";
 
 const POLL_MS = 3000;
-const PENDING_TTL_MS = 60_000;
+// 체결 이벤트(00 피드)가 정상 경로. TTL/stale 정리는 이벤트 누락(WS 끊김) 대비 백업 안전망.
+const PENDING_TTL_MS = 600_000;
+const OWNED_STALE_MS = 600_000;
 
 async function tick() {
   const setting = await getGuardSetting();
   if (!setting.enabled) return;
 
   await clearExpiredPendingSells(PENDING_TTL_MS);
+  await closeStaleOwnedOrders(OWNED_STALE_MS);
 
-  const [acct, approved, pending] = await Promise.all([
+  const [acct, approved, pending, outstandingBuy] = await Promise.all([
     fetchAccountEvaluation(),
     getApprovedMap(),
     getPendingMap(),
+    getOutstandingBuyMap(),
   ]);
-
-  const sells = computeForeignSells(acct.holdings, approved, pending);
+  const sells = computeForeignSells(acct.holdings, approved, pending, outstandingBuy);
 
   for (const s of sells) {
     let res: Awaited<ReturnType<typeof sellStock>>;
@@ -35,7 +40,10 @@ async function tick() {
         trde_tp: "3", // 시장가
       });
     } catch (e) {
-      console.error(`[guard] 매도 실패 ${s.stockName}(${s.stockCode}) x${s.qty}`, e);
+      console.error(
+        `[guard] 매도 실패 ${s.stockName}(${s.stockCode}) x${s.qty}`,
+        e
+      );
       continue;
     }
 

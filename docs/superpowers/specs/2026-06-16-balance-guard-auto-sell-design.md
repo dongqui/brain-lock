@@ -128,12 +128,126 @@ activated 전에는 enable 불가.
 진짜 외부 보유분이 무시될 수 있다. 이 오차는 **내 보유분을 잘못 매도하지 않는
 안전한 방향**으로 기운다. 취소 훅으로 가장 흔한 경우를 완화한다.
 
-근본 해결책은 키움 실시간 **체결 피드** 구독(현재 보류한 옵션)이며 이를 향후
-정밀도 업그레이드 경로로 둔다.
+근본 해결책은 키움 실시간 **체결 피드(`00` 주문체결)** 구독이며, **섹션 7**에서
+이를 설계한다. 섹션 7 적용 후 이 한계는 해소된다.
+
+또한 이 "주문 시점 적립" 모델은 별도의 운영 버그를 낳는다: `PendingSell`을 실체결이
+아니라 고정 TTL(60초)로만 지우기 때문에, **같은 종목을 자동매도 직후 다시 외부 매수**하면
+이전 매도의 PendingSell 행이 남아(`foreign = 보유 − 승인 − 대기 ≤ 0`) 그 신규 외부
+포지션이 TTL 만료(최대 60초)까지 매도되지 않는다. ("첫 외부 주문은 ~3초에 매도되나
+두 번째부터 한참 뒤에 매도" 증상.) 섹션 7의 체결 기반 PendingSell 정리가 이 버그도 해소한다.
+
+## 7. 체결 피드(`00`) 기반 장부 정밀화
+
+섹션 6의 한계와 위 버그는 **같은 뿌리** — 장부/대기 상태가 *주문 시점 `ord_qty`* 와
+*고정 타이머* 로만 구동되고 **실체결**을 반영하지 않는다. 키움 `00` 주문체결 실시간
+피드를 구독해 장부 변경의 진실원천을 **실체결 이벤트** 로 옮긴다.
+
+`00`은 계좌 단위 피드라 서비스 주문·외부(키움 앱 등) 주문의 체결이 **모두** 내려온다.
+따라서 **주문번호(`9203`)** 로 자체/외부를 식별한다.
+
+- **USER 주문**(서비스로 낸 매수/매도) → 신규 `OwnedOrder` 테이블에 `orderNo`로 기록.
+  체결 이벤트가 `approved` 를 갱신.
+- **GUARD 자동매도** → 기존 `PendingSell`(이미 `orderNo` 보유)이 그 기록. 체결 이벤트가
+  PendingSell을 실시간 정리 → 60초 blind TTL 대체(버그 해결).
+- **외부 주문**(어느 테이블에도 없는 orderNo) → 외부 포지션. 폴링이 탐지·매도(기존 경로 유지).
+
+### 7.1 데이터 모델 (신규)
+
+```prisma
+model OwnedOrder {
+  orderNo   String   @id           // 키움 ord_no
+  stockCode String
+  stockName String
+  side      String                 // "BUY" | "SELL"
+  orderQty  Int
+  filledQty Int      @default(0)   // 누적 체결 (델타 · 예약분 계산)
+  closed    Boolean  @default(false) // 완전체결/취소/거부 시 true
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+}
+```
+
+`PendingSell`은 유지하되 TTL을 **백업 안전망(예: 10분)** 으로 늘린다. 정상 경로는 체결
+이벤트가 정리하고, TTL은 WS 끊김으로 이벤트를 놓친 경우만 대비한다.
+
+### 7.2 구성요소 & 데이터 흐름
+
+신규 server-only 모듈 `client/app/guard/orderFeed.server.ts` — 워처와 동일하게 부팅 시
+1회 시작(`globalThis` 가드, dev HMR/중복 방지).
+
+```
+client 부팅
+ ├─ startWatcher()     (기존, 3초 폴링 — 외부 탐지 백스톱)
+ └─ startOrderFeed()   (신규)
+       createKiwoomSocket().connect("00") → LOGIN → register("00", [""])
+       onMessage → parseOrderExecution → 이벤트별 장부 트랜잭션
+       onClose → 재연결 + 재등록
+```
+
+`shared/socket.ts`는 이미 `register("00", [""])`로 계좌 이벤트 등록 가능 → **소켓 레이어
+변경 없음**. `shared/`에 `parseOrderExecution` 매퍼만 추가(`kiwoom_realtime_order.md` 그대로).
+
+### 7.3 체결 이벤트 처리
+
+각 이벤트에서 누적 체결량을 **`체결누계 = orderQty − 미체결수량(902)`** 로 구해 저장된
+`filledQty` 와의 **델타**만 적용한다(필드 `911` 의 cumulative/incremental 모호성 회피,
+부분체결 안전).
+
+| orderNo 매칭 | side | 처리 |
+| --- | --- | --- |
+| `PendingSell`에 있음 | (SELL) | `PendingSell.qty −= delta`, 0 도달 시 삭제 → **버그 해결** |
+| `OwnedOrder`에 있음 | BUY | `approved += delta` |
+| `OwnedOrder`에 있음 | SELL | `approved −= delta` (0 하한) |
+| 어디에도 없음 | BUY | 외부 → 무시(폴링이 매도) |
+| 어디에도 없음 | SELL | 무시 |
+
+취소/거부 상태(`913`) → 해당 `OwnedOrder.closed = true`(크레딧 없이 예약분 해제).
+
+### 7.4 레이스 가드 (정상 매수 오인 매도 방지)
+
+크레딧이 체결 시점으로 옮겨지면서 **체결 직후 이벤트 처리 전에 폴링이 먼저 보유분을 보면
+내 정상 매수를 외부로 오인**할 위험이 생긴다. 막는 법:
+
+미체결 자체 매수 예약분 `outstandingBuy = Σ(OwnedOrder.orderQty − filledQty)`
+(side=BUY, not closed) 를 폴링 계산에서 차감한다:
+
+```
+foreign = min(보유 − 승인 − 대기 − outstandingBuy, 매도가능 − 대기)
+```
+
+- 체결 전: `outstandingBuy` 가 커버 → 오인 매도 없음.
+- 체결 후: 이벤트가 `filledQty↑`, `approved↑` → outstanding 소멸, approved가 인계.
+- 미체결로 남은 지정가 매수 → outstanding이 그 종목 외부 탐지를 보수적으로 가림
+  (= 내 보유분을 잘못 팔지 않는 **안전한 방향**, 섹션 6 철학과 일치). 취소/체결로 자동 정상화.
+
+이로써 섹션 6 한계(미체결/취소 지정가 매수의 유령 크레딧)가 닫히고, 별도 취소 훅이
+불필요해진다.
+
+### 7.5 기존 파일 변경
+
+- **`trade.tsx`**: `creditLedger`/`debitLedger` 즉시 호출 제거 → 주문 성공 시
+  `OwnedOrder` insert(`res.ord_no`, side, orderQty). 크레딧/차감은 체결 이벤트가 수행.
+- **`watcher.server.ts`**: `outstandingBuy` 맵을 조회해 `computeForeignSells` 에 전달.
+  `PENDING_TTL_MS` 를 장기 백업값으로.
+- **`computeForeign.ts`**: 파라미터에 `outstandingBuyByCode` 추가, 위 공식 반영.
+  기존 테스트 유지 + 신규 케이스(레이스 가드, 부분체결).
+
+### 7.6 구현 전 실측 검증 항목 (모의투자 로그)
+
+스펙 추정값이라 구현 시 실제 `00` 수신 로그로 확인한다:
+
+- `9001` 종목코드 접두어 형식(`account.ts` 처럼 `^[A-Z]` strip 필요 여부)
+- `907` 매도수구분 매핑(문서 기준 2=매수)
+- `913` 주문상태 값(체결/접수/취소/거부 구분 문자열)
+- 부분체결 시 `902`(미체결수량) 동작 — 누계 도출 가정 검증
+- 모의투자가 `00` 이벤트를 실제로 내려주는지
+- 키움 동시 소켓 연결 한도(`server/` 가 이미 `0B` 1개 보유 → `client/` 가 `00` 1개 추가)
 
 ## 범위 밖 (Out of scope)
 
-- 실시간 체결 피드 기반 장부 정합 (업그레이드 경로로만 명시)
+- 외부 체결 **즉시 매도 트리거**(접근 C) — 폴링이 청산 담당, 이번 범위 제외
+- `04` 잔고 실시간 피드 — 이번 설계는 `00` 만으로 충분
 - 장 시간 스케줄링/휴장일 캘린더
 - 다중 계좌 지원
 - `server/` 패키지 변경 (이 기능은 건드리지 않음)
