@@ -6,7 +6,7 @@ import { buildThemesResponse } from '~/lib/themeScoring.server'
 export async function loader() {
   const [themes, rankingResult] = await Promise.all([
     prisma.theme.findMany({
-      include: { stocks: true },
+      include: { stocks: { orderBy: { order: 'asc' } } },
       orderBy: { order: 'asc' },
     }),
     getTopTradingValue().catch(() => ({ trde_prica_upper: [] as never[] })),
