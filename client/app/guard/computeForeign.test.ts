@@ -46,3 +46,25 @@ test("여러 종목 동시 처리, 음수/0은 스킵", () => {
   );
   assert.deepEqual(out, [{ stockCode: "000660", stockName: "SK하이닉스", qty: 10 }]);
 });
+
+test("미체결 자체 매수 예약분(outstandingBuy)은 외부로 오인하지 않음", () => {
+  // 보유 10, 승인 0, 대기 0, 미체결 자체매수 예약 10 → foreign 0
+  const out = computeForeignSells(
+    [h("005930", 10, 10)],
+    new Map(),
+    new Map(),
+    new Map([["005930", 10]])
+  );
+  assert.deepEqual(out, []);
+});
+
+test("예약분을 초과한 보유분만 외부로 매도", () => {
+  // 보유 15, 승인 0, 대기 0, 예약 10 → foreign 5
+  const out = computeForeignSells(
+    [h("005930", 15, 15)],
+    new Map(),
+    new Map(),
+    new Map([["005930", 10]])
+  );
+  assert.deepEqual(out, [{ stockCode: "005930", stockName: "005930", qty: 5 }]);
+});
