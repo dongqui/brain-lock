@@ -98,14 +98,26 @@ export async function applyApprovedEffect(e: {
   close: boolean;
 }) {
   await prisma.$transaction(async (tx) => {
-    if (e.delta !== 0) {
-      const pos = await tx.ledgerPosition.findUnique({ where: { stockCode: e.stockCode } });
-      const next = Math.max(0, (pos?.approvedQty ?? 0) + e.delta);
+    if (e.delta > 0) {
+      // 매수 체결: 원자적 증가(레이스 안전). 신규면 delta로 생성.
       await tx.ledgerPosition.upsert({
         where: { stockCode: e.stockCode },
-        create: { stockCode: e.stockCode, stockName: e.stockName, approvedQty: Math.max(0, e.delta) },
-        update: { approvedQty: next, stockName: e.stockName },
+        create: { stockCode: e.stockCode, stockName: e.stockName, approvedQty: e.delta },
+        update: { approvedQty: { increment: e.delta }, stockName: e.stockName },
       });
+    } else if (e.delta < 0) {
+      // 매도 체결: 기존 포지션에서만 차감(0 하한). 포지션이 없으면 음수 생성 금지 → 경고 후 생략.
+      const pos = await tx.ledgerPosition.findUnique({ where: { stockCode: e.stockCode } });
+      if (!pos) {
+        console.warn(
+          `[guard] 매도 체결이나 LedgerPosition 없음 — 차감 생략 ${e.stockCode} delta=${e.delta}`
+        );
+      } else {
+        await tx.ledgerPosition.update({
+          where: { stockCode: e.stockCode },
+          data: { approvedQty: Math.max(0, pos.approvedQty + e.delta), stockName: e.stockName },
+        });
+      }
     }
     await tx.ownedOrder.update({
       where: { orderNo: e.orderNo },
