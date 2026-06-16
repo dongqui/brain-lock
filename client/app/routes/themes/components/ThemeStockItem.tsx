@@ -1,3 +1,5 @@
+import { useSortable } from "@dnd-kit/sortable";
+import { CSS } from "@dnd-kit/utilities";
 import type { ThemeStockWithLeader } from "@brain-lock/kiwoom";
 
 interface ThemeStockItemProps {
@@ -17,8 +19,30 @@ export function ThemeStockItem({
   onRemove,
   onToggleLeader,
 }: ThemeStockItemProps) {
+  const { attributes, listeners, setNodeRef, transform, transition, isDragging } =
+    useSortable({
+      id: `stock-${themeId}-${stock.stockCode}`,
+      data: { type: "stock", themeId, stockCode: stock.stockCode },
+    });
+  const style: React.CSSProperties = {
+    transform: CSS.Transform.toString(transform),
+    transition,
+    opacity: isDragging ? 0.3 : undefined,
+  };
   return (
-    <div className="flex items-center gap-2 px-3 py-1.5 hover:bg-gray-800 rounded group">
+    <div
+      ref={setNodeRef}
+      style={style}
+      className="flex items-center gap-2 px-3 py-1.5 hover:bg-gray-800 rounded group"
+    >
+      <span
+        {...attributes}
+        {...listeners}
+        className="text-gray-600 cursor-grab active:cursor-grabbing select-none shrink-0"
+        title="드래그해서 순서 변경"
+      >
+        ≡
+      </span>
       <button
         type="button"
         onClick={() =>

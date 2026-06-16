@@ -83,5 +83,73 @@ export function useThemeMutations() {
     },
   })
 
-  return { createTheme, deleteTheme, addStock, removeStock, toggleLeader, reorderThemes }
+  const reorderStocks = useMutation({
+    mutationFn: async ({ themeId, stockCodes }: { themeId: number; stockCodes: string[] }) => {
+      const res = await fetch(`/api/themes/${themeId}/stocks/reorder`, {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ stockCodes }),
+      })
+      if (!res.ok) throw new Error('종목 순서 저장에 실패했습니다.')
+    },
+    onMutate: async ({ themeId, stockCodes }: { themeId: number; stockCodes: string[] }) => {
+      await queryClient.cancelQueries({ queryKey: themesQueryKey })
+      const previous = queryClient.getQueryData<ThemesApiResponse>(themesQueryKey)
+      if (previous) {
+        queryClient.setQueryData<ThemesApiResponse>(themesQueryKey, {
+          ...previous,
+          themes: previous.themes.map(theme => {
+            if (theme.id !== themeId) return theme
+            const byCode = new Map(theme.stocks.map(s => [s.stockCode, s]))
+            const reordered = stockCodes
+              .map((code, index) => {
+                const stock = byCode.get(code)
+                return stock ? { ...stock, order: index } : undefined
+              })
+              .filter((s): s is NonNullable<typeof s> => s != null)
+            return { ...theme, stocks: reordered }
+          }),
+        })
+      }
+      return { previous }
+    },
+    onError: (_err, _vars, context) => {
+      if (context?.previous) {
+        queryClient.setQueryData(themesQueryKey, context.previous)
+      }
+      invalidate()
+    },
+  })
+
+  const setCollapsed = useMutation({
+    mutationFn: async ({ themeId, collapsed }: { themeId: number; collapsed: boolean }) => {
+      const res = await fetch(`/api/themes/${themeId}`, {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ collapsed }),
+      })
+      if (!res.ok) throw new Error('접힘 상태 저장에 실패했습니다.')
+    },
+    onMutate: async ({ themeId, collapsed }: { themeId: number; collapsed: boolean }) => {
+      await queryClient.cancelQueries({ queryKey: themesQueryKey })
+      const previous = queryClient.getQueryData<ThemesApiResponse>(themesQueryKey)
+      if (previous) {
+        queryClient.setQueryData<ThemesApiResponse>(themesQueryKey, {
+          ...previous,
+          themes: previous.themes.map(theme =>
+            theme.id === themeId ? { ...theme, collapsed } : theme
+          ),
+        })
+      }
+      return { previous }
+    },
+    onError: (_err, _vars, context) => {
+      if (context?.previous) {
+        queryClient.setQueryData(themesQueryKey, context.previous)
+      }
+      invalidate()
+    },
+  })
+
+  return { createTheme, deleteTheme, addStock, removeStock, toggleLeader, reorderThemes, reorderStocks, setCollapsed }
 }

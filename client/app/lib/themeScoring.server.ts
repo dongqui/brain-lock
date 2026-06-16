@@ -5,12 +5,14 @@ type RawThemeStock = {
   stockCode: string
   stockName: string
   manualLeader: boolean
+  order: number
 }
 
 type RawTheme = {
   id: number
   name: string
   order: number
+  collapsed: boolean
   stocks: RawThemeStock[]
 }
 
@@ -58,6 +60,7 @@ export function buildThemesResponse(
         stockName: s.stockName,
         manualLeader: s.manualLeader,
         isLeader: s.stockCode === leaderCode,
+        order: s.order,
         rankingData: rankItem
           ? { tradingValue: rankItem.trde_prica, changeRate: rankItem.flu_rt }
           : undefined,
@@ -82,6 +85,7 @@ export function buildThemesResponse(
       id: theme.id,
       name: theme.name,
       order: theme.order,
+      collapsed: theme.collapsed,
       themeScore,
       isLeadingTheme: false,
       stocks,

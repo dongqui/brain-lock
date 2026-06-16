@@ -11,6 +11,7 @@ export type ThemeStockWithLeader = {
   stockName: string
   manualLeader: boolean
   isLeader: boolean
+  order: number
   rankingData?: {
     tradingValue: string
     changeRate: string
@@ -21,6 +22,7 @@ export type ThemeWithLeader = {
   id: number
   name: string
   order: number
+  collapsed: boolean
   themeScore: number
   isLeadingTheme: boolean
   stocks: ThemeStockWithLeader[]
