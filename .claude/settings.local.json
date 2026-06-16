@@ -11,7 +11,18 @@
       "Bash(grep -E \"themes\\\\.\\\\$|\\\\.reorder\")",
       "Bash(echo \"EXIT: $?\")",
       "Bash(npx tsc *)",
-      "Bash(git push *)"
+      "Bash(git push *)",
+      "Bash(git cherry-pick *)",
+      "Bash(echo \"=== EXIT: $? ===\")",
+      "Bash(node --import tsx --test client/app/guard/computeForeign.test.ts)",
+      "Bash(git log *)",
+      "Bash(git branch *)",
+      "Bash(git checkout *)",
+      "Bash(npx tsx *)",
+      "Bash(echo \"EXIT:$?\")",
+      "Skill(code-review)",
+      "Bash(git *)",
+      "Bash(node *)"
     ]
   },
   "hooks": {
