@@ -9,16 +9,33 @@ import {
 } from "./ledger.server";
 
 const RECONNECT_MS = 5000;
+// trade.tsx의 insertOwnedOrder 커밋이 체결 이벤트보다 늦게 도착하는 좁은 레이스 대비:
+// 미매칭(자체/대기 어디에도 없음)이면 한 번만 잠깐 뒤 재조회 후 external로 확정.
+const LOOKUP_RETRY_MS = 300;
+
+const delay = (ms: number) => new Promise<void>((resolve) => setTimeout(resolve, ms));
+
+async function lookupOrder(orderNo: string) {
+  let [owned, pending] = await Promise.all([
+    getOwnedOrder(orderNo),
+    getPendingByOrderNo(orderNo),
+  ]);
+  if (!owned && !pending) {
+    await delay(LOOKUP_RETRY_MS);
+    [owned, pending] = await Promise.all([
+      getOwnedOrder(orderNo),
+      getPendingByOrderNo(orderNo),
+    ]);
+  }
+  return { owned, pending };
+}
 
 async function handleRealtime(msg: RealtimeMessage) {
   const execs = parseOrderExecution(msg);
   for (const e of execs) {
     if (!e.orderNo) continue;
 
-    const [owned, pending] = await Promise.all([
-      getOwnedOrder(e.orderNo),
-      getPendingByOrderNo(e.orderNo),
-    ]);
+    const { owned, pending } = await lookupOrder(e.orderNo);
 
     const effect = computeOrderEffect(
       {
