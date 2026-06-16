@@ -55,6 +55,7 @@ function SortableThemePanel({
   onDelete,
   onRemoveStock,
   onToggleLeader,
+  onToggleCollapse,
 }: {
   theme: ThemeWithLeader;
   onDelete: (id: number) => void;
@@ -64,6 +65,7 @@ function SortableThemePanel({
     stockCode: string,
     current: boolean
   ) => void;
+  onToggleCollapse: (themeId: number, collapsed: boolean) => void;
 }) {
   const { attributes, listeners, setNodeRef, transform, transition, isOver } =
     useSortable({
@@ -81,6 +83,7 @@ function SortableThemePanel({
         onDelete={onDelete}
         onRemoveStock={onRemoveStock}
         onToggleLeader={onToggleLeader}
+        onToggleCollapse={onToggleCollapse}
         isDropTarget={isOver}
         dragHandleProps={{ ...attributes, ...listeners }}
       />
@@ -126,6 +129,32 @@ export default function Themes() {
           stockName: item.stockName,
         });
       }
+      return;
+    }
+
+    if (activeId.startsWith("stock-") && overId.startsWith("stock-")) {
+      const activeThemeId = active.data.current?.themeId as number | undefined;
+      const overThemeId = over.data.current?.themeId as number | undefined;
+      if (
+        activeThemeId == null ||
+        activeThemeId !== overThemeId ||
+        activeId === overId
+      ) {
+        return;
+      }
+      const theme = themes.find((t) => t.id === activeThemeId);
+      if (!theme) return;
+      const codes = theme.stocks.map((s) => s.stockCode);
+      const activeCode = active.data.current?.stockCode as string;
+      const overCode = over.data.current?.stockCode as string;
+      const oldIndex = codes.indexOf(activeCode);
+      const newIndex = codes.indexOf(overCode);
+      if (oldIndex === -1 || newIndex === -1) return;
+      const reordered = arrayMove(codes, oldIndex, newIndex);
+      mutations.reorderStocks.mutate({
+        themeId: activeThemeId,
+        stockCodes: reordered,
+      });
       return;
     }
 
@@ -236,6 +265,9 @@ export default function Themes() {
                         stockCode,
                         manualLeader: !current,
                       })
+                    }
+                    onToggleCollapse={(themeId, collapsed) =>
+                      mutations.setCollapsed.mutate({ themeId, collapsed })
                     }
                   />
                 ))}

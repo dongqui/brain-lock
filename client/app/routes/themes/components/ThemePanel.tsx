@@ -1,5 +1,8 @@
-import { useState } from "react";
 import type { ThemeWithLeader } from "@brain-lock/kiwoom";
+import {
+  SortableContext,
+  verticalListSortingStrategy,
+} from "@dnd-kit/sortable";
 import { ThemeStockItem } from "./ThemeStockItem";
 
 interface ThemePanelProps {
@@ -11,6 +14,7 @@ interface ThemePanelProps {
     stockCode: string,
     current: boolean
   ) => void;
+  onToggleCollapse: (themeId: number, collapsed: boolean) => void;
   isDropTarget?: boolean;
   dragHandleProps?: Record<string, unknown>;
 }
@@ -20,10 +24,11 @@ export function ThemePanel({
   onDelete,
   onRemoveStock,
   onToggleLeader,
+  onToggleCollapse,
   isDropTarget = false,
   dragHandleProps,
 }: ThemePanelProps) {
-  const [collapsed, setCollapsed] = useState(false);
+  const collapsed = theme.collapsed;
   return (
     <div
       className={`bg-gray-900 border rounded-xl overflow-hidden transition-colors ${
@@ -40,7 +45,7 @@ export function ThemePanel({
         </div>
         <button
           type="button"
-          onClick={() => setCollapsed((c) => !c)}
+          onClick={() => onToggleCollapse(theme.id, !collapsed)}
           className="text-gray-500 hover:text-white text-xs w-4 shrink-0"
           title={collapsed ? "펼치기" : "접기"}
         >
@@ -75,15 +80,22 @@ export function ThemePanel({
               종목을 드래그해서 추가하세요
             </p>
           ) : (
-            theme.stocks.map((stock) => (
-              <ThemeStockItem
-                key={stock.stockCode}
-                stock={stock}
-                themeId={theme.id}
-                onRemove={onRemoveStock}
-                onToggleLeader={onToggleLeader}
-              />
-            ))
+            <SortableContext
+              items={theme.stocks.map(
+                (s) => `stock-${theme.id}-${s.stockCode}`
+              )}
+              strategy={verticalListSortingStrategy}
+            >
+              {theme.stocks.map((stock) => (
+                <ThemeStockItem
+                  key={stock.stockCode}
+                  stock={stock}
+                  themeId={theme.id}
+                  onRemove={onRemoveStock}
+                  onToggleLeader={onToggleLeader}
+                />
+              ))}
+            </SortableContext>
           )}
         </div>
       )}
